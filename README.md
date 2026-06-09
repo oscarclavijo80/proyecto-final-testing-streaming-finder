@@ -597,23 +597,168 @@ on:
 
 ---
 
-## Reflexión Técnica
+## 🧭 Reflexión Final
 
-### ¿Qué capas fueron más difíciles de probar y por qué?
+> Sección requerida por el taller — respuestas del equipo sobre los aprendizajes del proceso.
 
-La **capa de delivery (HTTP)** fue la más compleja, ya que requiere montar el servidor completo con sus dependencias, manejar peticiones asíncronas y validar códigos de estado además del cuerpo de respuesta. Fue necesario instalar `supertest` para hacer peticiones HTTP sin abrir un puerto real.
+---
 
-### ¿Qué beneficios tiene usar FakeRepository vs. Mocks?
+### 1. ¿Qué capas fueron más difíciles de probar y por qué?
 
-El **FakeRepository** es más legible y permite verificar el estado real de los datos (cuántas entradas hay, qué se guardó). Los **Mocks** son más poderosos para verificar interacciones exactas (cuántas veces se llamó un método, con qué argumentos). Usamos ambos: FakeRepo para flujos completos y Mocks cuando nos importa el comportamiento, no el estado.
+La capa más difícil fue la **capa de delivery (REST / HTTP)**, equivalente al `RegistryController` del taller. Las razones fueron:
 
-### ¿Cómo mejora el diseño de la arquitectura limpia las pruebas?
+- **Requiere levantar el servidor completo**: a diferencia de las pruebas unitarias donde se llama una función directamente, aquí hay que montar toda la app Express con sus middlewares, rutas y dependencias inyectadas.
+- **Las pruebas son asíncronas**: cada petición HTTP devuelve una promesa, lo que obliga a usar `async/await` en cada test y manejar correctamente los tiempos de respuesta.
+- **Se validan múltiples dimensiones a la vez**: status HTTP, estructura del body JSON, tipos de datos y mensajes de error, todo en la misma prueba.
+- **Los errores son menos descriptivos**: cuando algo falla en una prueba de sistema, el stack trace apunta al `request(app).post(...)` y no directamente a la línea del código de negocio que falló, lo que dificulta el diagnóstico.
 
-Al inyectar el repositorio como dependencia en `UserSearchService`, podemos reemplazarlo fácilmente por un FakeRepository en tests sin cambiar el código de producción. Esto es el **principio de inversión de dependencias** aplicado.
+En contraste, la capa de **aplicación** (`UserSearchService`) fue la más fácil gracias a la inyección de dependencias: simplemente se reemplazó el repositorio real por un FakeRepository o un Mock, y las pruebas quedaron totalmente aisladas y rápidas.
 
-### ¿Qué aprendimos sobre CI/CD?
+```
+Dificultad de prueba por capa:
 
-Que las pruebas de integración y sistema son más lentas que las unitarias (red de dependencias más grande), por lo que tiene sentido ejecutarlas en etapas: unitarias primero (rápidas), luego integración y sistema. Si las unitarias fallan, no es necesario esperar a las de sistema.
+  delivery (HTTP)     ████████████  Alta  — requiere servidor, async, múltiples validaciones
+  application         ████          Baja  — inyección de dependencias facilita el aislamiento
+  domain (servicios)  ██            Muy baja — funciones puras, sin dependencias externas
+  infrastructure      ██████        Media — requiere FakeRepository o Mock del repositorio
+```
+
+---
+
+### 2. ¿Qué beneficios observas en usar mocks frente a H2 o base real?
+
+En el taller del profesor se usa **H2** (base de datos en memoria con SQL real). En nuestro proyecto en JavaScript usamos **FakeRepository** (Map en memoria) y **Jest Mocks** (jest.fn()). La comparación de beneficios es la siguiente:
+
+| Aspecto | Mocks (jest.fn / Mockito) | FakeRepository / H2 | BD Real |
+|---------|--------------------------|---------------------|---------|
+| **Velocidad** | ⚡ Instantánea — no hay I/O ni lógica | 🚀 Muy rápida — datos en RAM | 🐢 Lenta — conexión, transacciones, disco |
+| **Control** | Total — defines exactamente qué retorna cada llamada | Parcial — la lógica del Fake puede tener bugs propios | Ninguno — depende del estado real de la BD |
+| **Verificación de interacciones** | ✅ Sí — `verify()` / `toHaveBeenCalledWith()` | ❌ No directamente — hay que consultar el estado | ❌ No — solo se puede consultar la BD |
+| **Aislamiento** | Máximo — solo prueba una capa | Alto — prueba integración real sin infra externa | Bajo — depende de la infra del entorno |
+| **Realismo** | Bajo — simula comportamiento, no lo ejecuta | Medio — lógica real pero sin SQL/disco | Alto — comportamiento idéntico a producción |
+| **Mantenimiento** | Bajo — el mock no cambia si cambia la BD | Medio — el Fake debe evolucionar con el contrato | Alto — requiere migraciones, seeds, limpieza |
+
+**Conclusión práctica:** los mocks son ideales para verificar que el servicio llama correctamente al repositorio (`verify(repo).saveSearch(...)`), sin importar qué hace el repositorio. El FakeRepository es ideal para verificar que el flujo completo produce el estado correcto en la persistencia. Ambos se complementan: usamos mocks para pruebas de comportamiento y FakeRepository para pruebas de estado.
+
+---
+
+### 3. ¿Cómo mejorarías el diseño de `streamingApp` (RegistryController) y `FakeMovieRepository` (RegistryRepository) para facilitar las pruebas automáticas?
+
+#### Mejoras en `streamingApp.js` (equivalente a `RegistryController`)
+
+**a) Separar la validación del controlador en un middleware independiente:**
+```javascript
+// ❌ Actual: validación mezclada con lógica del controlador
+app.post('/search', (req, res) => {
+  const { userId, query } = req.body || {};
+  if (!userId || typeof userId !== 'string') {
+    return res.status(400).json({ error: '...' });
+  }
+  // lógica...
+});
+
+// ✅ Mejorado: middleware reutilizable y testeable por separado
+function validateSearchBody(req, res, next) {
+  const { userId } = req.body || {};
+  if (!userId || typeof userId !== 'string') {
+    return res.status(400).json({ error: 'userId es requerido y debe ser string' });
+  }
+  next();
+}
+app.post('/search', validateSearchBody, searchHandler);
+// Ahora validateSearchBody se puede probar unitariamente sin levantar el servidor
+```
+
+**b) Exportar los handlers como funciones puras:**
+```javascript
+// ✅ Handlers extraídos = testeables sin HTTP
+export function buildSearchHandler(userSearchService) {
+  return async (req, res) => { /* ... */ };
+}
+// En tests: const handler = buildSearchHandler(mockService); await handler(mockReq, mockRes);
+```
+
+**c) Centralizar el manejo de errores:**
+```javascript
+// ✅ Un solo lugar para errores → más fácil de probar
+app.use((err, req, res, next) => {
+  if (err instanceof ValidationError) return res.status(400).json({ error: err.message });
+  return res.status(500).json({ error: 'Error interno del servidor' });
+});
+```
+
+#### Mejoras en `FakeMovieRepository` (equivalente a `RegistryRepository`)
+
+**a) Definir una interfaz/contrato explícito:**
+```javascript
+// ✅ Contrato documentado que tanto el Fake como la implementación real deben cumplir
+/**
+ * @interface IMovieRepository
+ * saveSearch(userId, query, results): boolean
+ * getSearchHistory(userId): Array
+ * savePreferences(userId, preferences): boolean
+ * getPreferences(userId): Object|null
+ * hasPreferences(userId): boolean
+ */
+```
+
+**b) Agregar método `snapshot()` para comparar estado en tests:**
+```javascript
+// ✅ Facilita asserts de estado complejo
+snapshot() {
+  return Object.fromEntries(this._store);
+}
+// En tests: expect(repo.snapshot()).toMatchSnapshot();
+```
+
+**c) Agregar soporte para simular latencia y errores aleatorios:**
+```javascript
+// ✅ Para pruebas de resiliencia
+constructor({ failRate = 0, latencyMs = 0 } = {}) {
+  this._failRate = failRate;   // 0.1 = falla 10% de las veces
+  this._latencyMs = latencyMs; // simula latencia de red
+}
+```
+
+---
+
+### 4. ¿Qué aprendiste sobre integración continua (CI) al ejecutar tus pruebas con Jest y GitHub Actions?
+
+El taller del profesor usa **Maven + JaCoCo** para CI en Java. Nuestro equivalente en JavaScript es **Jest + GitHub Actions**. Los aprendizajes fueron:
+
+**a) Las pruebas deben ser independientes del entorno:**
+Al configurar el workflow en `.github/workflows/tests.yml`, descubrimos que las pruebas deben funcionar igual en la máquina local, en el runner de GitHub Actions (Ubuntu) y en cualquier entorno limpio. Esto nos obligó a eliminar cualquier dependencia de archivos locales, variables de entorno sin valor por defecto, o puertos fijos.
+
+**b) La pirámide de pruebas tiene impacto real en el tiempo de CI:**
+```
+  Unitarias (74):      ~0.5s   ← Corren primero, fallan rápido
+  Integración (47):    ~0.8s   ← Solo corren si unitarias pasan
+  Sistema (15 HTTP):   ~1.2s   ← Las más lentas, corren al final
+  ─────────────────────────────
+  Total:               ~2.5s   ← Pipeline completo en menos de 3 segundos
+```
+Tener los tres niveles separados en scripts distintos (`test:unit`, `test:integration`, `test:system`) permite configurar el pipeline para **fallar rápido**: si las unitarias fallan, no se desperdicia tiempo corriendo las de sistema.
+
+**c) Los umbrales de cobertura como "quality gate":**
+Al igual que JaCoCo en Maven permite configurar `<minimum>` de cobertura que rompe el build, Jest permite configurar `coverageThreshold` en `package.json`. Esto convierte la cobertura en una **puerta de calidad automática**: si alguien sube código sin pruebas suficientes, el pipeline de CI falla y no se puede hacer merge.
+
+```json
+// package.json — equivalente a la configuración de JaCoCo en pom.xml
+"coverageThreshold": {
+  "global": {
+    "branches": 60,
+    "functions": 80,
+    "lines": 80,
+    "statements": 80
+  }
+}
+```
+
+**d) CI detecta errores de integración que las pruebas locales no detectan:**
+El defecto **DEF-002** (userId numérico retornaba 500 en lugar de 400) solo se detectó porque la prueba de sistema corría en un entorno limpio sin estado previo. En desarrollo local, el estado del servidor podía enmascarar el error. El CI garantiza un entorno siempre limpio y reproducible.
+
+**e) La diferencia entre `npm test` y el pipeline completo:**
+Localmente es tentador correr solo `npm run test:unit` para ir más rápido. El CI nos enseñó a respetar el pipeline completo: unitarias → integración → sistema → cobertura. Saltarse pasos localmente es la causa más común de que el pipeline de CI falle cuando se hace push.
 
 ---
 
