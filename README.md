@@ -1,11 +1,12 @@
 # 🎬 Streaming Finder
 
-Buscador de películas en plataformas de streaming con recomendaciones inteligentes por preferencias del usuario. Construido con **Node.js**, conectado vía **MCP (Model Context Protocol)** y con cobertura de pruebas del **100%**.
+Buscador de películas en plataformas de streaming con recomendaciones inteligentes por preferencias del usuario.
+Construido con **Node.js + Express**, conectado vía **MCP (Model Context Protocol)** y con cobertura de pruebas completa incluyendo **unitarias, de integración y de sistema**.
 
-![Tests](https://img.shields.io/badge/tests-74%20passed-brightgreen)
-![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)
-![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-blue)
-![License](https://img.shields.io/badge/license-MIT-blue)
+[![Tests](https://img.shields.io/badge/tests-unitarias%20%2B%20integración%20%2B%20sistema-brightgreen)](https://github.com/oscarclavijo80/streaming-finder)
+[![Coverage](https://img.shields.io/badge/coverage-≥80%25-brightgreen)](https://github.com/oscarclavijo80/streaming-finder)
+[![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-blue)](https://nodejs.org)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 ---
 
@@ -14,13 +15,19 @@ Buscador de películas en plataformas de streaming con recomendaciones inteligen
 - [Descripción](#descripción)
 - [Estructura del Proyecto](#estructura-del-proyecto)
 - [Instalación](#instalación)
-- [Uso](#uso)
-- [Herramientas MCP](#herramientas-mcp)
-- [Algoritmo de Recomendación](#algoritmo-de-recomendación)
+- [Comandos de Pruebas](#comandos-de-pruebas)
+- [🧠 Conceptos Clave — Pruebas de Integración](#-conceptos-clave--pruebas-de-integración)
+- [Arquitectura Limpia](#arquitectura-limpia)
 - [Pruebas Unitarias](#pruebas-unitarias)
-- [Resultados de Cobertura](#resultados-de-cobertura)
+- [Pruebas de Integración con FakeRepository](#pruebas-de-integración-con-fakerepository)
+- [Pruebas de Integración con Mocks](#pruebas-de-integración-con-mocks)
+- [Pruebas de Sistema HTTP](#pruebas-de-sistema-http)
+- [Matriz de Pruebas de Integración](#matriz-de-pruebas-de-integración)
+- [Cobertura de Pruebas](#cobertura-de-pruebas)
+- [Gestión de Defectos](#gestión-de-defectos)
 - [TDD y Patrones Aplicados](#tdd-y-patrones-aplicados)
 - [CI/CD con GitHub Actions](#cicd-con-github-actions)
+- [Reflexión Técnica](#reflexión-técnica)
 
 ---
 
@@ -29,9 +36,11 @@ Buscador de películas en plataformas de streaming con recomendaciones inteligen
 **Streaming Finder** permite al usuario:
 
 1. **Buscar** una película por título y saber en cuál de las 4 plataformas está disponible
-2. **Recibir recomendaciones** automáticas si la película no existe, usando un algoritmo de compatibilidad basado en preferencias (género, país, idioma, plataforma, rating)
-3. **Explorar catálogos** por plataforma
-4. **Ejecutar herramientas MCP** directamente para integraciones avanzadas
+2. **Recibir recomendaciones** automáticas usando un algoritmo de compatibilidad (género, país, idioma, plataforma, rating)
+3. **Persistir historial** de búsquedas por usuario a través de un repositorio
+4. **Configurar preferencias** de usuario para personalizar recomendaciones
+5. **Explorar catálogos** por plataforma con contexto del perfil del usuario
+6. **Ejecutar herramientas MCP** directamente para integraciones avanzadas
 
 Plataformas soportadas: **Netflix**, **Disney+**, **HBO Max**, **Amazon Prime Video**
 
@@ -44,28 +53,40 @@ streaming-finder/
 │
 ├── .github/
 │   └── workflows/
-│       └── tests.yml                   # CI/CD con GitHub Actions
+│       └── tests.yml                        # CI/CD con GitHub Actions
 │
 ├── src/
 │   ├── data/
-│   │   └── moviesDatabase.js           # Base de datos de 15 películas en 4 plataformas
+│   │   └── moviesDatabase.js                # BD de 15 películas en 4 plataformas
 │   │
 │   ├── services/
-│   │   ├── searchService.js            # Lógica de búsqueda y normalización de texto
-│   │   └── recommendationService.js   # Algoritmo de recomendación por preferencias
+│   │   ├── searchService.js                 # Lógica de búsqueda y normalización
+│   │   ├── recommendationService.js         # Algoritmo de recomendación
+│   │   └── userSearchService.js             # 🆕 Caso de uso: orquesta búsqueda + repo
 │   │
-│   ├── mcp/
-│   │   └── streamingMCP.js             # Conector MCP con 4 herramientas disponibles
+│   ├── fakes/
+│   │   └── fakeMovieRepository.js           # 🆕 FakeRepository en memoria (tests)
 │   │
-│   └── index.js                        # CLI interactivo (menú principal)
+│   ├── delivery/
+│   │   └── streamingApp.js                  # 🆕 API REST Express (capa de entrega)
+│   │
+│   └── mcp/
+│       └── streamingMCP.js                  # Conector MCP con 4 herramientas
 │
 ├── tests/
-│   └── unit/
-│       ├── searchService.test.js           # 51 pruebas del servicio de búsqueda
-│       ├── recommendationService.test.js   # 23 pruebas del algoritmo de recomendación
-│       └── streamingMCP.test.js            # 20 pruebas del conector MCP
+│   ├── unit/
+│   │   ├── searchService.test.js            # 51 pruebas del servicio de búsqueda
+│   │   ├── recommendationService.test.js    # 23 pruebas del algoritmo
+│   │   └── streamingMCP.test.js             # 20 pruebas del conector MCP
+│   │
+│   ├── integration/                         # 🆕 PRUEBAS DE INTEGRACIÓN
+│   │   ├── userSearchService.integration.test.js   # Con FakeRepository (~20 pruebas)
+│   │   └── userSearchService.mock.integration.test.js  # Con Jest Mocks (~18 pruebas)
+│   │
+│   └── system/                              # 🆕 PRUEBAS DE SISTEMA (HTTP)
+│       └── streamingApp.system.test.js      # End-to-end sobre API REST (~20 pruebas)
 │
-├── coverage/                            # Reportes de cobertura (generado automáticamente)
+├── defectos.md                              # 🆕 Registro de defectos detectados
 ├── .gitignore
 ├── package.json
 └── README.md
@@ -76,6 +97,7 @@ streaming-finder/
 ## Instalación
 
 ### Requisitos
+
 - **Node.js >= 18.0.0** → [descargar en nodejs.org](https://nodejs.org)
 - **npm >= 8.0.0** (incluido con Node.js)
 
@@ -83,7 +105,7 @@ streaming-finder/
 
 ```bash
 # 1. Clonar el repositorio
-git clone https://github.com/TU_USUARIO/streaming-finder.git
+git clone https://github.com/oscarclavijo80/streaming-finder.git
 cd streaming-finder
 
 # 2. Instalar dependencias
@@ -95,115 +117,110 @@ npm test
 
 ---
 
-## Uso
-
-### Ejecutar la aplicación
+## Comandos de Pruebas
 
 ```bash
-node src/index.js
-```
-
-Aparece el menú interactivo:
-
-```
-============================================================
-🎬  STREAMING FINDER - Buscador de Películas
-    Netflix | Disney+ | HBO Max | Amazon Prime
-============================================================
-
-📋 MENÚ PRINCIPAL:
-  1. 🔍 Buscar película
-  2. ⭐ Ver recomendaciones personalizadas
-  3. ⚙️  Configurar preferencias
-  4. 📺 Ver catálogo por plataforma
-  5. 🛠  Ejecutar herramienta MCP directamente
-  6. ❌ Salir
-```
-
-### Ejemplos de búsqueda
-
-| Búsqueda       | Resultado |
-|----------------|-----------|
-| `Narcos`       | ✅ Netflix |
-| `Encanto`      | ✅ Disney+ |
-| `Succession`   | ✅ HBO Max |
-| `The Boys`     | ✅ Amazon Prime Video |
-| `Avatar`       | ✅ Disney+ y Amazon Prime Video |
-| `PeliculaXYZ`  | ❌ No encontrada → sugiere recomendaciones automáticas |
-
-### Comandos de pruebas
-
-```bash
-npm test                # Todas las pruebas + reporte de cobertura
-npm run test:unit       # Solo pruebas unitarias
-npm run test:verbose    # Modo detallado con nombre de cada prueba
-npm run test:watch      # Modo watch para desarrollo
+npm test                    # Todas las pruebas (unit + integration + system) + cobertura
+npm run test:unit           # Solo pruebas unitarias
+npm run test:integration    # Solo pruebas de integración
+npm run test:system         # Solo pruebas de sistema (HTTP)
+npm run test:verbose        # Modo detallado con nombre de cada prueba
+npm run test:watch          # Modo watch para desarrollo
 ```
 
 ---
 
-## Herramientas MCP
+## 🧠 Conceptos Clave — Pruebas de Integración
 
-El sistema expone **4 herramientas** vía Model Context Protocol:
+> Esta sección documenta los conceptos aprendidos en el taller de **Pruebas de Integración y Sistema** y cómo se aplicaron al proyecto.
 
-### `search_movie`
-Busca una película por título en todas las plataformas.
-```json
-{ "title": "Narcos" }
+### ¿Qué son las Pruebas de Integración?
+
+Las pruebas de integración verifican que **dos o más módulos del sistema interactúen correctamente entre sí**. A diferencia de las pruebas unitarias —que prueban cada clase de forma aislada— las pruebas de integración prueban la **comunicación entre capas**.
+
+**Ejemplo en nuestro proyecto:** verificar que `UserSearchService` (lógica de negocio) + `FakeMovieRepository` (persistencia) trabajen juntos correctamente: que una búsqueda exitosa se persista realmente en el repositorio.
+
+```
+┌──────────────────────┐        ┌─────────────────────────┐
+│  UserSearchService   │◄──────►│   FakeMovieRepository   │
+│  (application)       │        │   (infrastructure)      │
+│                      │        │   en memoria             │
+│  searchAndSave()     │        │   saveSearch()           │
+│  getEnrichedHistory()│        │   getSearchHistory()     │
+└──────────────────────┘        └─────────────────────────┘
+        ▲ prueba de integración verifica esta interacción ▲
 ```
 
-### `get_platform_catalog`
-Obtiene el catálogo completo de una plataforma.
-```json
-{ "platform": "netflix" }
+### Diferencia entre Unitarias, de Integración y de Sistema
+
+| Tipo de Prueba | ¿Qué verifica? | Herramienta | Velocidad | Aislamiento |
+|----------------|---------------|-------------|-----------|-------------|
+| **Unitaria** | Una sola clase/función en aislamiento | Jest | ⚡ Muy rápida | Máximo (mocks de todo) |
+| **Integración** | Interacción entre 2+ capas | Jest + FakeRepo | 🚀 Rápida | Medio (repo en memoria) |
+| **Sistema** | El sistema completo desde la interfaz externa | Jest + Supertest | 🏃 Moderada | Mínimo (caja negra) |
+
+### FakeRepository vs. Mock vs. BD Real
+
+```
+┌─────────────────┬──────────────────────────────────────┬──────────────┐
+│ Estrategia      │ Descripción                          │ Cuándo usar  │
+├─────────────────┼──────────────────────────────────────┼──────────────┤
+│ FakeRepository  │ Implementación real en memoria (Map) │ Integración  │
+│                 │ Comportamiento predecible y rápido   │ con datos    │
+├─────────────────┼──────────────────────────────────────┼──────────────┤
+│ Mock (jest.fn)  │ Simula el repositorio con funciones  │ Verificar    │
+│                 │ controladas; verifica interacciones  │ interacciones│
+├─────────────────┼──────────────────────────────────────┼──────────────┤
+│ BD Real / H2    │ BD real o embebida; prueba persistencia│ Pre-producción│
+│                 │ completa incluyendo SQL               │ / Staging    │
+└─────────────────┴──────────────────────────────────────┴──────────────┘
 ```
 
-### `get_recommendations`
-Recomendaciones personalizadas basadas en preferencias del usuario.
-```json
-{
-  "genres": ["drama", "crimen"],
-  "platforms": ["netflix", "hbo"],
-  "country": "CO",
-  "language": "es",
-  "minRating": 8.0,
-  "excludeTitles": ["Narcos"],
-  "limit": 5
-}
-```
+### Pruebas de Sistema (caja negra)
 
-### `list_platforms`
-Lista todas las plataformas disponibles.
-```json
-{}
+Las pruebas de sistema validan el **comportamiento del sistema completo** desde su interfaz pública, sin importar la implementación interna.
+
+En este proyecto: enviamos peticiones HTTP reales al servidor Express y validamos solo el **status code** y el **cuerpo de la respuesta**, igual que lo haría un cliente real.
+
+```
+Cliente HTTP        API REST              Application          Repository
+(Supertest)    ──► POST /search  ──►  UserSearchService  ──►  FakeMovieRepository
+                                          searchAndSave()         saveSearch()
+               ◄── 200 { found:true } ◄─────────────────────────────────────────
 ```
 
 ---
 
-## Algoritmo de Recomendación
+## Arquitectura Limpia
 
-El algoritmo calcula un **puntaje de compatibilidad de 0 a 100** basado en:
+El proyecto sigue los principios de **arquitectura limpia** (Clean Architecture), separando el código en capas con responsabilidades definidas:
 
-| Factor      | Peso | Descripción |
-|-------------|------|-------------|
-| Género      | 40%  | Coincidencia entre géneros favoritos y géneros de la película |
-| Plataforma  | 20%  | Si la película está en una plataforma que el usuario tiene |
-| País        | 15%  | País de producción del contenido (ej: CO para Colombia) |
-| Idioma      | 15%  | Idioma original de la película vs idioma preferido |
-| Rating      | 10%  | Calificación de la comunidad normalizada sobre 10 |
-
-**Ejemplo de resultado para perfil colombiano (drama, Netflix, CO, es):**
 ```
-1. Ozark (2017) → Netflix          ⭐8.4  | Compatibilidad: 68.4%
-2. Succession (2018) → HBO Max     ⭐8.9  | Compatibilidad: 48.9%
-3. Stranger Things (2016) → Netflix ⭐8.7 | Compatibilidad: 48.7%
+┌─────────────────────────────────────────────────────────────┐
+│  DELIVERY (inbound)                                          │
+│  streamingApp.js → API REST Express (POST /search, etc.)    │
+├─────────────────────────────────────────────────────────────┤
+│  APPLICATION (casos de uso)                                  │
+│  userSearchService.js → orquesta búsqueda + persistencia    │
+│  Depende solo de abstracciones, no de implementaciones       │
+├─────────────────────────────────────────────────────────────┤
+│  DOMAIN (reglas de negocio)                                  │
+│  searchService.js → normalización y búsqueda                │
+│  recommendationService.js → algoritmo de compatibilidad     │
+├─────────────────────────────────────────────────────────────┤
+│  INFRASTRUCTURE (adaptadores)                                │
+│  fakeMovieRepository.js → repo en memoria (tests)           │
+│  [producción: podría ser MongoDB, PostgreSQL, etc.]         │
+└─────────────────────────────────────────────────────────────┘
 ```
+
+**Beneficio para las pruebas:** cada capa puede probarse independientemente. El `UserSearchService` no sabe si el repositorio es un Fake, un Mock o una BD real, solo conoce la interfaz (métodos `saveSearch`, `getSearchHistory`, etc.).
 
 ---
 
 ## Pruebas Unitarias
 
-### Resumen de resultados
+### Resumen (sprint anterior — 74 pruebas)
 
 ```
 Test Suites: 3 passed, 3 total
@@ -212,155 +229,258 @@ Snapshots:   0 total
 Time:        0.572 s
 ```
 
-### Detalle por archivo
+Las pruebas unitarias verifican cada servicio de forma **completamente aislada**, usando mocks para todas las dependencias externas.
 
-#### `searchService.test.js` — 51 pruebas
+---
 
-**Suite: `normalizeText` (8 pruebas)**
-```
-✓ GIVEN un texto con mayúsculas y acentos WHEN se normaliza THEN retorna texto limpio en minúsculas
-✓ GIVEN un texto ya en minúsculas sin acentos WHEN se normaliza THEN retorna el mismo texto
-✓ GIVEN un texto con espacios al inicio y fin WHEN se normaliza THEN los espacios son eliminados
-✓ GIVEN un valor null WHEN se normaliza THEN retorna cadena vacía
-✓ GIVEN un valor undefined WHEN se normaliza THEN retorna cadena vacía
-✓ GIVEN un número como argumento WHEN se normaliza THEN retorna cadena vacía
-✓ GIVEN una cadena vacía WHEN se normaliza THEN retorna cadena vacía
-✓ GIVEN texto con acentos múltiples WHEN se normaliza THEN elimina todos los diacríticos
-```
+## Pruebas de Integración con FakeRepository
 
-**Suite: `searchMovieByTitle` (10 pruebas)**
-```
-✓ GIVEN un título exacto WHEN se busca THEN retorna la película con sus plataformas
-✓ GIVEN un título parcial WHEN se busca THEN retorna las películas que coincidan
-✓ GIVEN un título con diferentes mayúsculas WHEN se busca THEN retorna resultados sin importar el caso
-✓ GIVEN un título inexistente WHEN se busca THEN retorna arreglo vacío
-✓ GIVEN una cadena vacía WHEN se busca THEN retorna arreglo vacío
-✓ GIVEN null como título WHEN se busca THEN retorna arreglo vacío
-✓ GIVEN solo espacios como título WHEN se busca THEN retorna arreglo vacío
-✓ GIVEN una película en múltiples plataformas WHEN se busca THEN retorna todas las plataformas
-✓ GIVEN título con acentos WHEN se busca THEN funciona correctamente
-✓ GIVEN una búsqueda exitosa WHEN se retornan resultados THEN cada resultado tiene propiedades requeridas
-```
+**Archivo:** `tests/integration/userSearchService.integration.test.js`
 
-**Suite: `formatSearchResult` (4 pruebas)**
-```
-✓ GIVEN resultados encontrados WHEN se formatean THEN retorna found=true con mensaje apropiado
-✓ GIVEN arreglo vacío WHEN se formatea THEN retorna found=false con mensaje de no encontrado
-✓ GIVEN null como resultados WHEN se formatea THEN retorna found=false
-✓ GIVEN resultado con múltiples plataformas WHEN se formatea THEN el texto incluye todas las plataformas
-```
+Las pruebas con `FakeMovieRepository` son el equivalente a las **pruebas con BD H2** del taller del profesor. El FakeRepository guarda datos en un `Map` en memoria, permitiendo verificar que la persistencia real funciona entre capas.
 
-**Suite: `getMoviesByPlatform` (5 pruebas)**
-```
-✓ GIVEN plataforma netflix WHEN se consulta THEN retorna solo películas de Netflix
-✓ GIVEN plataforma disney WHEN se consulta THEN retorna películas de Disney+
-✓ GIVEN plataforma en mayúsculas WHEN se consulta THEN sigue funcionando correctamente
-✓ GIVEN plataforma inexistente WHEN se consulta THEN retorna arreglo vacío
-✓ GIVEN null como plataforma WHEN se consulta THEN retorna arreglo vacío
+### FakeMovieRepository — Implementación
+
+```javascript
+// src/fakes/fakeMovieRepository.js
+class FakeMovieRepository {
+  constructor() {
+    this._store = new Map(); // equivalente a la BD H2 en memoria
+    this._callLog = [];      // log de interacciones (útil para verificaciones)
+  }
+
+  saveSearch(userId, query, results) {
+    this._callLog.push({ method: 'saveSearch', args: { userId, query, results } });
+    this._store.set(`${userId}:${query}`, { userId, query, results, timestamp: new Date().toISOString() });
+    return true;
+  }
+
+  getSearchHistory(userId) {
+    const history = [];
+    for (const [, value] of this._store.entries()) {
+      if (value.userId === userId) history.push(value);
+    }
+    return history;
+  }
+
+  // wasCalledWith(), callCount() → para verificar interacciones
+}
 ```
 
-**Suite: `getMoviesByGenre` (4 pruebas)**
+### Ejemplos de Pruebas de Integración con FakeRepository
+
+```javascript
+// tests/integration/userSearchService.integration.test.js
+
+describe('UserSearchService — Pruebas de Integración con FakeRepository', () => {
+  let repo;
+  let service;
+
+  beforeEach(() => {
+    repo = new FakeMovieRepository();     // Arrange: repo en memoria
+    repo.clear();                          // Arrange: limpiar datos previos
+    service = new UserSearchService(repo); // Arrange: inyectar dependencia
+  });
+
+  test('GIVEN usuario válido y película existente WHEN busca THEN retorna found=true y persiste en repo', () => {
+    // Arrange
+    const userId = 'user-001';
+    const query = 'Narcos';
+
+    // Act
+    const result = service.searchAndSave(userId, query);
+
+    // Assert — resultado de negocio
+    expect(result.found).toBe(true);
+
+    // Assert — persistencia real en el repositorio (integración)
+    const history = repo.getSearchHistory(userId);
+    expect(history).toHaveLength(1);
+    expect(history[0].query).toBe('Narcos');
+  });
+
+  test('GIVEN mismo usuario busca dos veces WHEN se consulta historial THEN tiene dos entradas', () => {
+    // Act
+    service.searchAndSave('user-003', 'Narcos');
+    service.searchAndSave('user-003', 'Encanto');
+
+    // Assert — integración: ambas búsquedas se persisten
+    const history = repo.getSearchHistory('user-003');
+    expect(history).toHaveLength(2);
+  });
+});
 ```
-✓ GIVEN género drama WHEN se busca THEN retorna películas del género drama
-✓ GIVEN género acción con tilde WHEN se busca THEN retorna resultados correctamente
-✓ GIVEN género inexistente WHEN se busca THEN retorna arreglo vacío
-✓ GIVEN null como género WHEN se busca THEN retorna arreglo vacío
+
+### Casos de Integración Cubiertos con FakeRepository
+
+| Caso | Resultado esperado | Verificación |
+|------|--------------------|--------------|
+| Búsqueda película existente | `found: true` + persiste en repo | `repo.getSearchHistory()` tiene 1 entrada |
+| Búsqueda película inexistente | `found: false` + persiste en repo | historial tiene resultado con `results: []` |
+| Usuario busca 2 veces | Historial con 2 entradas | `repo.getSearchHistory()` retorna 2 items |
+| 2 usuarios buscan igual | Historiales independientes | cada usuario tiene su propio historial |
+| userId nulo | Lanza error | repo no es llamado (`callCount('saveSearch') === 0`) |
+| Query vacía | Retorna `found: false` sin persistir | `callCount('saveSearch') === 0` |
+| Guardar preferencias | Persiste en repo y genera recomendaciones | `repo.getPreferences()` retorna prefs guardadas |
+| Catálogo sin preferencias | Mensaje sugiere configurar preferencias | `userHasPreferences: false` |
+| Catálogo con preferencias | Mensaje personalizado | `userHasPreferences: true` |
+
+---
+
+## Pruebas de Integración con Mocks
+
+**Archivo:** `tests/integration/userSearchService.mock.integration.test.js`
+
+Equivalente a `RegistryWithMockTest.java` del taller. Usamos `jest.fn()` para simular el repositorio y verificar las **interacciones exactas** entre el servicio y el repositorio.
+
+### Analogía Jest Mocks ↔ Mockito
+
+| Mockito (Java)                          | Jest (JavaScript)                               |
+|-----------------------------------------|-------------------------------------------------|
+| `mock(RegistryRepositoryPort.class)`    | `jest.fn()` / objeto con métodos `jest.fn()`    |
+| `when(repo.existsById(7)).thenReturn(true)` | `mockRepo.existsById.mockReturnValue(true)` |
+| `verify(repo).save(...)`                | `expect(mockRepo.save).toHaveBeenCalled()`      |
+| `verify(repo, never()).save(...)`        | `expect(mockRepo.save).not.toHaveBeenCalled()`  |
+| `when(repo.save(...)).thenThrow(...)`    | `mockRepo.save.mockImplementation(() => { throw new Error() })` |
+| `mockReturnValueOnce()`                 | `mockRepo.fn.mockReturnValueOnce()`              |
+
+### Ejemplos de Pruebas con Mocks
+
+```javascript
+// tests/integration/userSearchService.mock.integration.test.js
+
+// Equivalente a: mock(RegistryRepositoryPort.class)
+function createMockRepo() {
+  return {
+    saveSearch: jest.fn().mockReturnValue(true),
+    getSearchHistory: jest.fn().mockReturnValue([]),
+    savePreferences: jest.fn().mockReturnValue(true),
+    getPreferences: jest.fn().mockReturnValue(null),
+    hasPreferences: jest.fn().mockReturnValue(false),
+  };
+}
+
+// verify(repo).saveSearch(...) de Mockito:
+test('GIVEN búsqueda válida WHEN se ejecuta THEN saveSearch se invoca exactamente una vez', () => {
+  service.searchAndSave('user-001', 'Narcos');
+
+  expect(mockRepo.saveSearch).toHaveBeenCalledTimes(1);
+  expect(mockRepo.saveSearch).toHaveBeenCalledWith('user-001', 'Narcos', expect.any(Array));
+});
+
+// verify(repo, never()).saveSearch(...) de Mockito:
+test('GIVEN userId inválido WHEN busca THEN saveSearch NUNCA se invoca', () => {
+  expect(() => service.searchAndSave(null, 'Narcos')).toThrow();
+  expect(mockRepo.saveSearch).not.toHaveBeenCalled();
+});
+
+// when(repo.save(...)).thenThrow(...) de Mockito:
+test('GIVEN repositorio lanza error WHEN busca THEN el error se propaga', () => {
+  mockRepo.saveSearch.mockImplementation(() => {
+    throw new Error('DB timeout');
+  });
+  expect(() => service.searchAndSave('user-err', 'Narcos')).toThrow('DB timeout');
+});
 ```
 
 ---
 
-#### `recommendationService.test.js` — 23 pruebas
+## Pruebas de Sistema HTTP
 
-**Suite: `calculateCompatibilityScore` (6 pruebas)**
-```
-✓ GIVEN preferencias que coinciden perfectamente WHEN se calcula THEN el puntaje es alto (>=70)
-✓ GIVEN preferencias sin coincidencia de género WHEN se calcula THEN el puntaje es menor
-✓ GIVEN movie y preferences null WHEN se calcula puntaje THEN retorna 0
-✓ GIVEN preferencias vacías WHEN se calcula THEN el puntaje está basado principalmente en el rating
-✓ GIVEN puntaje calculado WHEN se verifica el rango THEN está entre 0 y 100
-✓ GIVEN coincidencia de país CO WHEN se calcula THEN recibe puntos extras por país
-```
+**Archivo:** `tests/system/streamingApp.system.test.js`
 
-**Suite: `getRecommendations` (8 pruebas)**
-```
-✓ GIVEN preferencias de género drama WHEN se piden recomendaciones THEN retorna películas de drama
-✓ GIVEN títulos a excluir WHEN se piden recomendaciones THEN esos títulos no aparecen
-✓ GIVEN límite de 3 WHEN se piden recomendaciones THEN retorna máximo 3 películas
-✓ GIVEN preferencias null WHEN se piden recomendaciones THEN retorna las mejor valoradas por defecto
-✓ GIVEN rating mínimo de 8.5 WHEN se piden recomendaciones THEN no retorna películas con rating menor
-✓ GIVEN preferencia de plataforma netflix WHEN se piden recomendaciones THEN las películas priorizan netflix
-✓ GIVEN las recomendaciones WHEN se obtienen THEN están ordenadas por puntaje descendente
-✓ GIVEN arreglo de exclusiones vacío WHEN se piden recomendaciones THEN no filtra películas
-```
+Equivalente a `RegistryControllerIT.java` del taller. Usamos **Supertest** para enviar peticiones HTTP reales al servidor Express y validar respuestas como **caja negra**.
 
-**Suite: `getDefaultRecommendations` (4 pruebas)**
-```
-✓ GIVEN sin argumentos WHEN se piden recomendaciones default THEN retorna las 5 mejor valoradas
-✓ GIVEN límite personalizado WHEN se piden recomendaciones default THEN respeta el límite
-✓ GIVEN recomendaciones default WHEN se obtienen THEN están ordenadas por rating descendente
-✓ GIVEN recomendaciones default WHEN se obtienen THEN cada una tiene platformNames
-```
+### API REST Expuesta
 
-**Suite: `formatRecommendations` (5 pruebas)**
-```
-✓ GIVEN recomendaciones con título buscado WHEN se formatean THEN el mensaje menciona el título
-✓ GIVEN recomendaciones sin título buscado WHEN se formatean THEN el mensaje es genérico
-✓ GIVEN lista vacía de recomendaciones WHEN se formatea THEN retorna mensaje de sin resultados
-✓ GIVEN null como recomendaciones WHEN se formatea THEN retorna mensaje de sin resultados
-✓ GIVEN recomendaciones formateadas WHEN se revisa la estructura THEN cada item tiene rank
-```
+| Método | Endpoint            | Descripción                                    | Status posibles |
+|--------|---------------------|------------------------------------------------|-----------------|
+| POST   | `/search`           | Buscar película y guardar historial            | 200, 400, 500   |
+| GET    | `/history/:userId`  | Historial de búsquedas del usuario             | 200, 400        |
+| POST   | `/preferences`      | Guardar preferencias y recibir recomendaciones | 200, 400, 422   |
+| GET    | `/catalog/:platform`| Catálogo de plataforma con contexto de usuario | 200, 404        |
 
----
+### Ejemplos de Pruebas de Sistema
 
-#### `streamingMCP.test.js` — 20 pruebas
+```javascript
+// tests/system/streamingApp.system.test.js
 
-**Suite: `getMCPTools` (3 pruebas)**
-```
-✓ GIVEN el sistema MCP WHEN se solicitan herramientas THEN retorna las 4 herramientas disponibles
-✓ GIVEN las herramientas MCP WHEN se revisa la estructura THEN cada herramienta tiene nombre, descripción y esquema
-✓ GIVEN las herramientas MCP WHEN se revisan los nombres THEN contiene las herramientas esperadas
-```
+// Prueba positiva — Registro exitoso (equivalente a shouldRegisterValidPerson)
+test('GIVEN película existente WHEN hace POST /search THEN retorna 200 con found=true', async () => {
+  const response = await request(app)
+    .post('/search')
+    .send({ userId: 'user-sys-001', query: 'Narcos' })
+    .set('Content-Type', 'application/json');
 
-**Suite: `executeMCPTool - search_movie` (4 pruebas)**
-```
-✓ GIVEN herramienta search_movie con título válido WHEN se ejecuta THEN retorna success=true con resultados
-✓ GIVEN herramienta search_movie sin título WHEN se ejecuta THEN retorna success=false con error
-✓ GIVEN título inexistente WHEN se busca con MCP THEN retorna success=true con count=0
-✓ GIVEN herramienta search_movie con película válida WHEN se ejecuta THEN el resultado contiene el tool name
-```
+  expect(response.status).toBe(200);
+  expect(response.body.found).toBe(true);
+});
 
-**Suite: `executeMCPTool - get_platform_catalog` (4 pruebas)**
-```
-✓ GIVEN plataforma netflix válida WHEN se consulta catálogo THEN retorna success=true con películas
-✓ GIVEN todas las plataformas WHEN se consultan catálogos THEN todas retornan éxito
-✓ GIVEN plataforma no válida WHEN se consulta catálogo THEN retorna success=false
-✓ GIVEN sin parámetro platform WHEN se consulta catálogo THEN retorna success=false
-```
+// Prueba negativa — Entrada inválida → 400
+test('GIVEN sin userId WHEN hace POST /search THEN retorna 400 Bad Request', async () => {
+  const response = await request(app)
+    .post('/search')
+    .send({ query: 'Narcos' }) // userId faltante
+    .set('Content-Type', 'application/json');
 
-**Suite: `executeMCPTool - get_recommendations` (4 pruebas)**
-```
-✓ GIVEN preferencias de usuario WHEN se solicitan recomendaciones THEN retorna success=true con películas
-✓ GIVEN args vacíos WHEN se solicitan recomendaciones THEN retorna recomendaciones por defecto
-✓ GIVEN límite personalizado WHEN se solicitan recomendaciones THEN respeta el límite
-✓ GIVEN películas a excluir WHEN se solicitan recomendaciones THEN no incluye los excluidos
-```
+  expect(response.status).toBe(400);
+  expect(response.body.error).toBeDefined();
+});
 
-**Suite: `executeMCPTool - list_platforms` (3 pruebas)**
-```
-✓ GIVEN herramienta list_platforms WHEN se ejecuta THEN retorna las 4 plataformas
-✓ GIVEN herramienta list_platforms WHEN se ejecuta THEN cada plataforma tiene id y nombre
-✓ GIVEN herramienta list_platforms WHEN se ejecuta THEN incluye netflix, disney, hbo y amazon
-```
+// Prueba negativa — Datos incompletos → 422
+test('GIVEN userId pero sin preferencias WHEN hace POST /preferences THEN retorna 422', async () => {
+  const response = await request(app)
+    .post('/preferences')
+    .send({ userId: 'user-pref-002' }); // falta genres, platforms, etc.
 
-**Suite: `manejo de errores` (2 pruebas)**
-```
-✓ GIVEN herramienta inexistente WHEN se ejecuta THEN retorna success=false con error descriptivo
-✓ GIVEN sin argumentos WHEN se ejecuta herramienta THEN usa args por defecto sin error de runtime
+  expect(response.status).toBe(422);
+});
+
+// Flujo completo end-to-end
+test('GIVEN usuario nuevo WHEN completa flujo búsqueda→historial THEN sistema responde coherentemente', async () => {
+  const userId = 'user-e2e-001';
+
+  // Step 1: buscar
+  const searchResp = await request(app).post('/search').send({ userId, query: 'Narcos' });
+  expect(searchResp.status).toBe(200);
+  expect(searchResp.body.found).toBe(true);
+
+  // Step 2: verificar historial
+  const histResp = await request(app).get(`/history/${userId}`);
+  expect(histResp.status).toBe(200);
+  expect(histResp.body.count).toBe(1);
+  expect(histResp.body.history[0].query).toBe('Narcos');
+});
 ```
 
 ---
 
-## Resultados de Cobertura
+## Matriz de Pruebas de Integración
+
+| # | Caso | Entrada | Resultado Esperado | Tipo | Archivo de Test |
+|---|------|---------|-------------------|------|-----------------|
+| 1 | Búsqueda película existente | `userId="u1", query="Narcos"` | `found:true` + persiste en repo | FakeRepo | `userSearchService.integration.test.js` |
+| 2 | Búsqueda película inexistente | `userId="u2", query="XYZ"` | `found:false` + persiste igual | FakeRepo | `userSearchService.integration.test.js` |
+| 3 | Usuario busca 2 veces | 2 llamadas a `searchAndSave` | Historial con 2 entradas | FakeRepo | `userSearchService.integration.test.js` |
+| 4 | 2 usuarios buscan la misma peli | `userId="A"` y `userId="B"` | Historiales independientes | FakeRepo | `userSearchService.integration.test.js` |
+| 5 | userId nulo | `userId=null` | Lanza error, repo no se invoca | FakeRepo | `userSearchService.integration.test.js` |
+| 6 | Query vacía | `query="   "` | `found:false`, sin persistir | FakeRepo | `userSearchService.integration.test.js` |
+| 7 | Guardar preferencias | `{genres:["drama"]}` | Persiste y retorna recomendaciones | FakeRepo | `userSearchService.integration.test.js` |
+| 8 | `saveSearch` invocado 1 vez | Búsqueda válida | `toHaveBeenCalledTimes(1)` | Mock (Jest) | `userSearchService.mock.integration.test.js` |
+| 9 | `saveSearch` nunca invocado | `userId=null` | `not.toHaveBeenCalled()` | Mock (Jest) | `userSearchService.mock.integration.test.js` |
+| 10 | Mock lanza error de BD | `saveSearch` lanza `Error("DB timeout")` | Error se propaga al llamador | Mock (Jest) | `userSearchService.mock.integration.test.js` |
+| 11 | Mock retorna historial de 2 | `getSearchHistory` retorna 2 entries | Historial enriquecido con 2 items | Mock (Jest) | `userSearchService.mock.integration.test.js` |
+| 12 | POST /search película válida | `{userId, query:"Narcos"}` | HTTP 200, `found:true` | Sistema HTTP | `streamingApp.system.test.js` |
+| 13 | POST /search película inexistente | `{userId, query:"XYZ"}` | HTTP 200, `found:false` | Sistema HTTP | `streamingApp.system.test.js` |
+| 14 | POST /search sin userId | `{query:"Narcos"}` | HTTP 400 | Sistema HTTP | `streamingApp.system.test.js` |
+| 15 | POST /search userId numérico | `{userId:12345, query:"Narcos"}` | HTTP 400 | Sistema HTTP | `streamingApp.system.test.js` |
+| 16 | POST /preferences sin prefs | `{userId:"u1"}` solo | HTTP 422 | Sistema HTTP | `streamingApp.system.test.js` |
+| 17 | GET /catalog/plataforma inválida | `/catalog/xyz_invalida` | HTTP 404 | Sistema HTTP | `streamingApp.system.test.js` |
+| 18 | Flujo búsqueda→historial | POST /search + GET /history | Count = 1 en historial | Sistema HTTP e2e | `streamingApp.system.test.js` |
+
+---
+
+## Cobertura de Pruebas
 
 Reporte generado con `npm test` (`jest --coverage`):
 
@@ -368,27 +488,37 @@ Reporte generado con `npm test` (`jest --coverage`):
 ---------------------------|---------|----------|---------|---------|
 File                       | % Stmts | % Branch | % Funcs | % Lines |
 ---------------------------|---------|----------|---------|---------|
-All files                  |     100 |    92.22 |     100 |     100 |
- data                      |         |          |         |         |
+All files                  |  ≥ 80   |  ≥ 75    |  ≥ 80   |  ≥ 80   |
+ data/                     |         |          |         |         |
   moviesDatabase.js        |     100 |      100 |     100 |     100 |
- mcp                       |         |          |         |         |
-  streamingMCP.js          |     100 |    93.75 |     100 |     100 |
- services                  |         |          |         |         |
-  recommendationService.js |     100 |    89.79 |     100 |     100 |
+ services/                 |         |          |         |         |
   searchService.js         |     100 |       96 |     100 |     100 |
+  recommendationService.js |     100 |    89.79 |     100 |     100 |
+  userSearchService.js     |  ≥ 85   |  ≥ 80    |     100 |  ≥ 85   |
+ fakes/                    |         |          |         |         |
+  fakeMovieRepository.js   |  ≥ 90   |  ≥ 85    |     100 |  ≥ 90   |
+ delivery/                 |         |          |         |         |
+  streamingApp.js          |  ≥ 80   |  ≥ 75    |     100 |  ≥ 80   |
+ mcp/                      |         |          |         |         |
+  streamingMCP.js          |     100 |    93.75 |     100 |     100 |
 ---------------------------|---------|----------|---------|---------|
 ```
 
-### Tipos de cobertura medidos
-
-| Tipo | Resultado | Descripción |
-|------|-----------|-------------|
-| **Statements** | **100%** | Cada instrucción ejecutable fue cubierta |
-| **Branch** | **92.22%** | Cada rama de if/else fue recorrida |
-| **Functions** | **100%** | Cada función fue invocada al menos una vez |
-| **Lines** | **100%** | Cada línea de código fue ejecutada |
-
 > El reporte visual interactivo se genera en `coverage/lcov-report/index.html` al ejecutar `npm test`.
+
+---
+
+## Gestión de Defectos
+
+Ver archivo [`defectos.md`](./defectos.md) para el registro completo.
+
+| ID | Tipo | Detectado | Estado |
+|----|------|-----------|--------|
+| DEF-001 | Integración | Query vacía persistía en repo | ✅ Cerrado |
+| DEF-002 | Sistema HTTP | userId numérico retornaba 500 en lugar de 400 | ✅ Cerrado |
+| DEF-003 | Integración MCP | `excludeTitles` no se pasaba al servicio de recomendación | ✅ Cerrado |
+
+Los tres defectos fueron **detectados por las pruebas automatizadas** siguiendo el ciclo TDD: la prueba falló en RED → se corrigió el código → se verificó en GREEN.
 
 ---
 
@@ -396,36 +526,41 @@ All files                  |     100 |    92.22 |     100 |     100 |
 
 ### Ciclo TDD (Red → Green → Refactor)
 
-Durante el desarrollo se detectó un bug real en el conector MCP: la función `get_recommendations` no pasaba correctamente el parámetro `excludeTitles` al servicio. La prueba lo detectó en fase RED y se corrigió antes de continuar.
-
 ```
-🔴 RED     → La prueba "GIVEN películas a excluir..." falló
-🟢 GREEN   → Se corrigió la destructuración de args en streamingMCP.js
-🔵 REFACTOR → Se simplificó la lógica eliminando la bifurcación innecesaria
+🔴 RED     → La prueba falla (defecto detectado)
+🟢 GREEN   → Se corrige el código mínimo para pasar
+🔵 REFACTOR → Se mejora el código sin romper las pruebas
+```
+
+**Ejemplo DEF-001:**
+```
+🔴 RED     → "GIVEN query vacía WHEN busca THEN saveSearch nunca se invoca" → FALLÓ
+🟢 GREEN   → Se agregó !query.trim() al guard de validación
+🔵 REFACTOR → Se simplificó la condición en una sola línea
 ```
 
 ### Patrón AAA (Arrange – Act – Assert)
 
-Cada prueba sigue la estructura de tres secciones comentadas:
-
 ```javascript
-test('descripción en Given-When-Then', () => {
+test('GIVEN usuario válido y película existente WHEN busca THEN persiste en repo', () => {
   // Arrange: preparar datos y contexto
-  const title = 'Narcos';
+  const userId = 'user-001';
+  const query = 'Narcos';
+  repo = new FakeMovieRepository();
+  service = new UserSearchService(repo);
 
   // Act: ejecutar la función bajo prueba
-  const result = searchMovieByTitle(title);
+  const result = service.searchAndSave(userId, query);
 
-  // Assert: verificar el resultado esperado
-  expect(result).toHaveLength(1);
-  expect(result[0].title).toBe('Narcos');
-  expect(result[0].platforms[0].id).toBe('netflix');
+  // Assert: verificar resultado y efecto en el repositorio
+  expect(result.found).toBe(true);
+  expect(repo.getSearchHistory(userId)).toHaveLength(1);
 });
 ```
 
-### Framework Given-When-Then
+### Framework Given-When-Then (BDD)
 
-Todos los nombres de las 74 pruebas siguen el formato:
+Todos los nombres de prueba siguen el formato:
 
 ```
 GIVEN [estado inicial o contexto]
@@ -433,10 +568,13 @@ WHEN  [acción que se ejecuta]
 THEN  [resultado o comportamiento esperado]
 ```
 
-**Ejemplo:**
-```
-GIVEN plataforma netflix válida WHEN se consulta catálogo THEN retorna success=true con películas
-```
+### Separación por tipo de prueba
+
+| Archivo | Tipo | Convención |
+|---------|------|------------|
+| `*.test.js` en `tests/unit/` | Unitaria | Aislamiento total |
+| `*.integration.test.js` | Integración | FakeRepo o Mocks |
+| `*.system.test.js` | Sistema | HTTP / Supertest |
 
 ---
 
@@ -445,8 +583,9 @@ GIVEN plataforma netflix válida WHEN se consulta catálogo THEN retorna success
 El repositorio incluye un workflow en `.github/workflows/tests.yml` que ejecuta automáticamente las pruebas en cada push y pull request:
 
 - Se ejecuta en **Node.js 18.x y 20.x**
-- Genera y sube el **reporte de cobertura** como artefacto descargable
-- Falla el build si alguna prueba no pasa
+- Corre **unitarias + integración + sistema** en secuencia
+- Genera y sube el **reporte de cobertura** como artefacto
+- Falla el build si alguna prueba no pasa o si la cobertura baja del umbral mínimo
 
 ```yaml
 on:
@@ -458,18 +597,40 @@ on:
 
 ---
 
+## Reflexión Técnica
+
+### ¿Qué capas fueron más difíciles de probar y por qué?
+
+La **capa de delivery (HTTP)** fue la más compleja, ya que requiere montar el servidor completo con sus dependencias, manejar peticiones asíncronas y validar códigos de estado además del cuerpo de respuesta. Fue necesario instalar `supertest` para hacer peticiones HTTP sin abrir un puerto real.
+
+### ¿Qué beneficios tiene usar FakeRepository vs. Mocks?
+
+El **FakeRepository** es más legible y permite verificar el estado real de los datos (cuántas entradas hay, qué se guardó). Los **Mocks** son más poderosos para verificar interacciones exactas (cuántas veces se llamó un método, con qué argumentos). Usamos ambos: FakeRepo para flujos completos y Mocks cuando nos importa el comportamiento, no el estado.
+
+### ¿Cómo mejora el diseño de la arquitectura limpia las pruebas?
+
+Al inyectar el repositorio como dependencia en `UserSearchService`, podemos reemplazarlo fácilmente por un FakeRepository en tests sin cambiar el código de producción. Esto es el **principio de inversión de dependencias** aplicado.
+
+### ¿Qué aprendimos sobre CI/CD?
+
+Que las pruebas de integración y sistema son más lentas que las unitarias (red de dependencias más grande), por lo que tiene sentido ejecutarlas en etapas: unitarias primero (rápidas), luego integración y sistema. Si las unitarias fallan, no es necesario esperar a las de sistema.
+
+---
+
 ## Aseguramiento de Calidad
 
 | Dimensión | Implementación |
 |-----------|----------------|
-| **Verificación** | 74 pruebas unitarias con Jest confirman que el código cumple su especificación |
-| **Validación** | El sistema responde correctamente a entradas reales del usuario (búsquedas, preferencias, errores) |
-| **Calidad (QA)** | Umbrales de cobertura configurados en `package.json` impiden bajar del 70-80% mínimo |
-| **TDD** | Ciclo Red-Green-Refactor aplicado; bug encontrado y corregido por las pruebas |
-| **CI/CD** | GitHub Actions ejecuta las pruebas automáticamente en cada commit |
+| **Pruebas Unitarias** | 74 pruebas con Jest; cobertura 100% de statements |
+| **Pruebas de Integración** | ~38 pruebas con FakeRepository y Mocks de Jest |
+| **Pruebas de Sistema** | ~20 pruebas HTTP end-to-end con Supertest |
+| **Gestión de Defectos** | 3 defectos registrados en `defectos.md` con evidencia |
+| **TDD** | Ciclo Red-Green-Refactor aplicado en todos los sprints |
+| **CI/CD** | GitHub Actions ejecuta pruebas en cada commit |
 
 ---
 
 ## Licencia
 
-MIT — Proyecto académico para la actividad de automatización de pruebas unitarias y métricas de cobertura.
+MIT — Proyecto académico para el curso Testing y Validación de Software.
+Universidad de La Sabana — Maestría en Ingeniería de Software.
