@@ -27,6 +27,7 @@ Construido con **Node.js + Express**, conectado vía **MCP (Model Context Protoc
 - [Gestión de Defectos](#gestión-de-defectos)
 - [TDD y Patrones Aplicados](#tdd-y-patrones-aplicados)
 - [CI/CD con GitHub Actions](#cicd-con-github-actions)
+- [🚀 Pruebas de Carga y Rendimiento](#-pruebas-de-carga-y-rendimiento)
 - [Reflexión Técnica](#reflexión-técnica)
 
 ---
@@ -594,6 +595,90 @@ on:
   pull_request:
     branches: [ main ]
 ```
+
+---
+
+## 🚀 Pruebas de Carga y Rendimiento
+
+> 📄 **Documentación completa:** [`perf/README.md`](./perf/README.md)
+
+Este módulo implementa el taller de **pruebas de carga y rendimiento** sobre la API REST del proyecto, utilizando un runner propio en Node.js compatible con scripts de **k6** (Grafana).
+
+### API REST expuesta para las pruebas
+
+El servidor `src/server/app.js` expone los servicios internos del proyecto como endpoints HTTP:
+
+| Endpoint | Método | Descripción |
+|---|---|---|
+| `/health` | GET | Estado del servicio y uptime |
+| `/api/movies/search?title=` | GET | Búsqueda de película por título |
+| `/api/movies/platform/:id` | GET | Catálogo por plataforma |
+| `/api/movies/genre/:genre` | GET | Películas por género |
+| `/api/recommendations` | POST | Recomendaciones personalizadas |
+| `/api/platforms` | GET | Lista de plataformas disponibles |
+
+```bash
+# Iniciar la API
+node src/server/app.js
+# → http://127.0.0.1:3000
+```
+
+### Escenarios implementados
+
+| Escenario | VUs | Duración | Propósito |
+|---|---|---|---|
+| **Baseline** | 1 | 30s | Línea base de referencia |
+| **Load** | 10 | 2 min | Carga esperada de producción |
+| **Stress** | 50 | 3 min | Punto de quiebre del sistema |
+| **Spike** | 5 → 100 en 5s | 60s | Pico repentino de tráfico |
+| **Soak** | 10 | 5 min | Resistencia y detección de memory leaks |
+| **Regression** | 10 | 1 min | Validación de SLO post-cambio (corre en cada PR) |
+
+### SLO — Service Level Objectives
+
+| SLO | Target | Justificación |
+|---|---|---|
+| Latencia p95 | < 300 ms | Estándar web moderno (Google Core Web Vitals) |
+| Tasa de errores | < 1% | Mínimo aceptable para servicios de búsqueda |
+| Latencia p99 | < 500 ms | Cubre casos outlier sin afectar percepción |
+| Disponibilidad | ≥ 99% | Estándar para apps de entretenimiento |
+
+### Resultados Baseline (referencia)
+
+```
+Total requests  : 876
+Throughput      : 29.18 req/s
+Tasa de errores : 0.00%
+Latencia avg    : 0.77 ms
+p95             : 2 ms   ✅ (SLO: < 300ms)
+p99             : 4 ms   ✅ (SLO: < 500ms)
+Disponibilidad  : 100%   ✅ (SLO: ≥ 99%)
+```
+
+### Ejecución de pruebas
+
+```bash
+# Runner Node.js (sin dependencias)
+node perf/scripts/run_perf_tests.js baseline
+node perf/scripts/run_perf_tests.js load
+node perf/scripts/run_perf_tests.js stress
+node perf/scripts/run_perf_tests.js all      # todos los escenarios
+
+# Con k6 instalado
+k6 run perf/scripts/streaming_k6.js --env SCENARIO=load
+```
+
+Los reportes JSON se guardan automáticamente en `perf/results/`.
+
+### Defectos de rendimiento identificados
+
+| ID | Escenario | Descripción | Estado |
+|---|---|---|---|
+| PERF-001 | Stress | p95 > 300ms bajo 50 VUs — sin caché, algoritmo O(n) | Abierto |
+| PERF-002 | Spike | Timeouts bajo 100 VUs en 5s — sin backpressure | Abierto |
+| PERF-003 | Soak | Latencia crece +167% al final — presión de GC | En progreso |
+
+> 📄 Registro completo en [`perf/defectos_rendimiento.md`](./perf/defectos_rendimiento.md)
 
 ---
 
