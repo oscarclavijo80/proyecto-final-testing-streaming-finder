@@ -1,0 +1,126 @@
+{
+  "scenario": "baseline",
+  "scenarioConfig": {
+    "name": "Baseline Test",
+    "description": "Comportamiento base con 1 usuario virtual durante 30 segundos. Establece la línea de referencia para comparación.",
+    "vus": 1,
+    "durationSec": 30,
+    "rampUp": 0,
+    "rampDown": 0
+  },
+  "executedAt": "2026-06-15T02:21:33.070Z",
+  "durationActual": 30016,
+  "summary": {
+    "totalRequests": 876,
+    "failedRequests": 0,
+    "errorRate": 0,
+    "throughput": 29.184434968017058
+  },
+  "latency": {
+    "count": 876,
+    "avg": 0.7728310502283106,
+    "min": 0,
+    "max": 18,
+    "med": 1,
+    "p90": 1,
+    "p95": 2,
+    "p99": 4
+  },
+  "byGroup": {
+    "health": {
+      "count": 146,
+      "avg": 1.1506849315068493,
+      "min": 0,
+      "max": 18,
+      "med": 1,
+      "p90": 2,
+      "p95": 2,
+      "p99": 4,
+      "errors": 0,
+      "errorRate": 0
+    },
+    "search": {
+      "count": 146,
+      "avg": 0.8013698630136986,
+      "min": 0,
+      "max": 8,
+      "med": 1,
+      "p90": 1,
+      "p95": 2,
+      "p99": 4,
+      "errors": 0,
+      "errorRate": 0
+    },
+    "platform": {
+      "count": 146,
+      "avg": 0.7534246575342466,
+      "min": 0,
+      "max": 4,
+      "med": 1,
+      "p90": 1,
+      "p95": 2,
+      "p99": 4,
+      "errors": 0,
+      "errorRate": 0
+    },
+    "genre": {
+      "count": 146,
+      "avg": 0.5068493150684932,
+      "min": 0,
+      "max": 6,
+      "med": 0,
+      "p90": 1,
+      "p95": 2,
+      "p99": 3,
+      "errors": 0,
+      "errorRate": 0
+    },
+    "recommendations": {
+      "count": 146,
+      "avg": 0.8356164383561644,
+      "min": 0,
+      "max": 10,
+      "med": 1,
+      "p90": 1,
+      "p95": 2,
+      "p99": 4,
+      "errors": 0,
+      "errorRate": 0
+    },
+    "platforms_list": {
+      "count": 146,
+      "avg": 0.589041095890411,
+      "min": 0,
+      "max": 6,
+      "med": 0,
+      "p90": 1,
+      "p95": 1,
+      "p99": 6,
+      "errors": 0,
+      "errorRate": 0
+    }
+  },
+  "slo": {
+    "SLO-1: p95 < 300ms": {
+      "target": "p95 < 300ms",
+      "value": "2.0ms",
+      "pass": true
+    },
+    "SLO-2: Error rate < 1%": {
+      "target": "< 1%",
+      "value": "0.00%",
+      "pass": true
+    },
+    "SLO-3: p99 < 500ms": {
+      "target": "p99 < 500ms",
+      "value": "4.0ms",
+      "pass": true
+    },
+    "SLO-4: Disponibilidad >= 99%": {
+      "target": ">= 99%",
+      "value": "100.00%",
+      "pass": true
+    }
+  },
+  "sloAllPassed": true
+}

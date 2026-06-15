@@ -1,0 +1,14 @@
+[
+  { "title": "Narcos", "platform": "netflix", "genre": "drama" },
+  { "title": "Encanto", "platform": "disney", "genre": "animacion" },
+  { "title": "Succession", "platform": "hbo", "genre": "drama" },
+  { "title": "The Boys", "platform": "amazon", "genre": "accion" },
+  { "title": "Stranger Things", "platform": "netflix", "genre": "terror" },
+  { "title": "Avatar", "platform": "disney", "genre": "accion" },
+  { "title": "Ozark", "platform": "netflix", "genre": "drama" },
+  { "title": "The Mandalorian", "platform": "disney", "genre": "ciencia ficcion" },
+  { "title": "Euphoria", "platform": "hbo", "genre": "drama" },
+  { "title": "The Grand Tour", "platform": "amazon", "genre": "documental" },
+  { "title": "PeliculaInexistente", "platform": "netflix", "genre": "drama" },
+  { "title": "TituloFalso123", "platform": "hbo", "genre": "comedia" }
+]
