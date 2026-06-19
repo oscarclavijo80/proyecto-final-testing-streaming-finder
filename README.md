@@ -24,7 +24,7 @@ Construido con **Node.js + Express**, conectado vía **MCP (Model Context Protoc
 - [Pruebas de Sistema HTTP](#pruebas-de-sistema-http)
 - [Matriz de Pruebas de Integración](#matriz-de-pruebas-de-integración)
 - [Cobertura de Pruebas](#cobertura-de-pruebas)
-- [📊 Métricas de Calidad](#-métricas-de-calidad)
+- [📊 Métricas de Defectos: Clasificación y Solución](#-métricas-de-defectos-clasificación-y-solución)
 - [Gestión de Defectos](#gestión-de-defectos)
 - [TDD y Patrones Aplicados](#tdd-y-patrones-aplicados)
 - [CI/CD con GitHub Actions](#cicd-con-github-actions)
@@ -510,103 +510,48 @@ All files                  |  ≥ 80   |  ≥ 75    |  ≥ 80   |  ≥ 80   |
 
 ---
 
-## 📊 Métricas de Calidad
+## 📊 Métricas de Defectos: Clasificación y Solución
 
-> Datos reales extraídos de `npm test -- --coverage` y de `perf/results/baseline_2026-06-15T02-21-33.json`. Última actualización: 2026-06-18.
+> Datos reales extraídos de [`defectos.md`](./defectos.md) y [`perf/defectos_rendimiento.md`](./perf/defectos_rendimiento.md). Última actualización: 2026-06-18.
 
-[![Tests](https://img.shields.io/badge/tests-124%20passed-brightgreen)](#-métricas-de-calidad)
-[![Coverage Lines](https://img.shields.io/badge/coverage%20lines-62.8%25-orange)](#-métricas-de-calidad)
-[![Coverage Branches](https://img.shields.io/badge/coverage%20branches-49.7%25-red)](#-métricas-de-calidad)
-[![Defects](https://img.shields.io/badge/defectos%20cerrados-3%2F6-yellow)](#-métricas-de-calidad)
-[![Baseline p95](https://img.shields.io/badge/baseline%20p95-2ms%20(SLO%20%3C300ms)-brightgreen)](#-métricas-de-calidad)
+[![Defectos](https://img.shields.io/badge/defectos%20totales-6-blue)](#-métricas-de-defectos-clasificación-y-solución)
+[![Cerrados](https://img.shields.io/badge/cerrados-3-brightgreen)](#-métricas-de-defectos-clasificación-y-solución)
+[![En progreso](https://img.shields.io/badge/en%20progreso-1-yellow)](#-métricas-de-defectos-clasificación-y-solución)
+[![Abiertos](https://img.shields.io/badge/abiertos-2-red)](#-métricas-de-defectos-clasificación-y-solución)
 
-### Resumen ejecutivo
+### Clasificación
 
-| Indicador | Valor | Meta / SLO | Estado |
-|---|---|---|---|
-| Pruebas totales | 124 (100% pasando) | — | ✅ |
-| Cobertura de statements | 60.1% | ≥ 80% | ❌ Por debajo de la meta |
-| Cobertura de branches | 49.7% | ≥ 60% | ❌ Por debajo de la meta |
-| Cobertura de functions | 57.8% | ≥ 80% | ❌ Por debajo de la meta |
-| Cobertura de lines | 62.8% | ≥ 80% | ❌ Por debajo de la meta |
-| Defectos cerrados | 3 / 6 (50%) | — | ⚠️ Mitad en seguimiento |
-| Latencia p95 (baseline, 1 VU) | 2 ms | < 300 ms | ✅ |
-| Latencia p95 (stress, 50 VUs) | > 300 ms | < 300 ms | ❌ Ver `PERF-001` |
-
-### Cobertura por módulo
-
-| Módulo | % Statements | % Branches | % Functions | % Lines | Lectura |
+| ID | Tipo | Severidad | Prioridad | Categoría | Impacto |
 |---|---|---|---|---|---|
-| `data/moviesDatabase.js` | 100 | 100 | 100 | 100 | 🟢 Completo |
-| `services/searchService.js` | 100 | 96.0 | 100 | 100 | 🟢 Completo |
-| `services/recommendationService.js` | 100 | 93.9 | 100 | 100 | 🟢 Completo |
-| `services/userSearchService.js` | 96.6 | 89.3 | 100 | 100 | 🟢 Completo |
-| `delivery/streamingApp.js` | 91.7 | 83.3 | 100 | 94.3 | 🟢 Completo |
-| `fakes/fakeMovieRepository.js` | 82.1 | 42.9 | 61.5 | 88.0 | 🟡 Ramas sin cubrir |
-| `mcp/streamingMCP.js` | 62.3 | 38.3 | 42.9 | 61.5 | 🟠 Manejadores de error sin probar |
-| `server/app.js` | 0 | 0 | 0 | 0 | 🔴 Sin pruebas directas |
+| DEF-001 | Integración (Servicio + Repositorio) | Media | Media | Validación de entrada | Historial inválido persistido en base de datos (búsquedas vacías guardadas) |
+| DEF-002 | Sistema (HTTP / caja negra) | Alta | Alta | Manejo de errores / API | Endpoint retornaba 500 (error interno no controlado) en lugar de 400 |
+| DEF-003 | Integración (MCP + Recomendación) | Alta | Alta | Lógica de negocio | Recomendaciones incorrectas (incluían títulos que debían excluirse) |
+| PERF-001 | Rendimiento (Stress, 50 VUs) | Alta | Media | Rendimiento / Escalabilidad | Incumplimiento de SLO p95 < 300ms bajo carga de estrés |
+| PERF-002 | Rendimiento (Spike, 5→100 VUs) | Crítica | Alta | Rendimiento / Disponibilidad | Errores y timeouts ante picos abruptos de tráfico |
+| PERF-003 | Rendimiento (Soak, 10 VUs / 5min) | Media | Media | Rendimiento / Gestión de memoria | Degradación silenciosa de latencia en sesiones largas |
 
-```
-Cobertura de líneas por módulo (%)
-data/moviesDatabase.js        ████████████████████████████████████████ 100%
-services/searchService.js     ████████████████████████████████████████ 100%
-recommendationService.js      ████████████████████████████████████████ 100%
-userSearchService.js          ████████████████████████████████████████ 100%
-delivery/streamingApp.js      █████████████████████████████████████░░░  94%
-fakes/fakeMovieRepository.js  ███████████████████████████████████░░░░░  88%
-mcp/streamingMCP.js           ████████████████████████░░░░░░░░░░░░░░░░  62%
-server/app.js                 ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0%
-```
+**Criterio aplicado:** la severidad valora el efecto técnico/funcional (un 500 no controlado es severidad alta porque rompe el contrato de la API); la prioridad valora la urgencia de negocio (`PERF-002` se prioriza alto porque afecta disponibilidad ante eventos reales de tráfico).
 
-**Lectura:** `server/app.js` (el servidor usado por las pruebas de carga) no tiene cobertura porque las pruebas Jest ejercitan `delivery/streamingApp.js`, no este archivo — son dos puntos de entrada distintos. `mcp/streamingMCP.js` es el segundo punto más débil: varias ramas de manejo de errores (líneas 43-61, 85-110, 223-239) no están cubiertas.
+### Solución y cierre
 
-### Pruebas por tipo
+| ID | Causa raíz | Corrección aplicada | Estado final | Evidencia de cierre |
+|---|---|---|---|---|
+| DEF-001 | Guard de validación comprobaba `!query` pero no `!query.trim()` | Se agregó `!query.trim()` al guard antes de invocar `saveSearch` | ✅ Cerrado | Mock `saveSearch` con 0 invocaciones tras corrección |
+| DEF-002 | Controlador validaba `!userId` (falsiness) sin chequear el tipo | Se agregó `typeof userId !== 'string'` a la validación | ✅ Cerrado | Respuesta HTTP 400 confirmada en prueba de sistema |
+| DEF-003 | Desestructuración del objeto `args` omitía `excludeTitles` | Se incluyó `excludeTitles` en la desestructuración del conector MCP | ✅ Cerrado | Recomendaciones sin títulos excluidos, validado en prueba unitaria |
+| PERF-001 | Sin caché; `getRecommendations()` recorre el dataset completo (O(n)) por solicitud | Propuesta: caché en memoria con TTL, cluster de Node.js, precálculo de scores | 🔴 Abierto | Métrica aún > 300ms p95; pendiente nueva ejecución de validación |
+| PERF-002 | Sin backpressure ni límite de conexiones configurado | Propuesta: `server.maxConnections` + cola, circuit breaker, balanceador (nginx) | 🔴 Abierto | Tasa de error sigue > 5% en el escenario spike |
+| PERF-003 | Posible memory leak / presión de GC en `recommendationService.js` | En revisión: referencias circulares, `--max-old-space-size`, endpoint de métricas | 🟠 En progreso | Tendencia de latencia/memoria aún no remedida tras cambios |
 
-| Tipo | Cantidad | % del total | Resultado |
-|---|---|---|---|
-| Unitarias | 77 | 62% | ✅ 100% pasando |
-| Integración | 29 | 23% | ✅ 100% pasando |
-| Sistema (HTTP) | 18 | 15% | ✅ 100% pasando |
-| **Total** | **124** | **100%** | ✅ |
-
-Pirámide de pruebas saludable: la mayoría de los casos están en la base (unitarias, rápidas y aisladas), con menos casos —pero igualmente necesarios— en integración y sistema.
-
-### Estado de defectos
-
-| Estado | Cantidad | IDs |
-|---|---|---|
-| 🟢 Cerrado | 3 | DEF-001, DEF-002, DEF-003 |
-| 🟠 En progreso | 1 | PERF-003 |
-| 🔴 Abierto | 2 | PERF-001, PERF-002 |
-
-Los 3 defectos funcionales están cerrados (corregidos vía TDD y validados con prueba en verde). Los 3 defectos de rendimiento permanecen abiertos o en progreso porque requieren cambios de arquitectura (caché, clustering, circuit breaker) — ver [`perf/defectos_rendimiento.md`](./perf/defectos_rendimiento.md).
-
-### Rendimiento: línea base vs. SLO
-
-| Métrica | Línea base (1 VU / 30s) | SLO | Cumple |
-|---|---|---|---|
-| Latencia promedio | 0.77 ms | — | — |
-| Latencia p90 | 1 ms | — | — |
-| Latencia p95 | 2 ms | < 300 ms | ✅ |
-| Latencia p99 | 4 ms | < 500 ms | ✅ |
-| Tasa de error | 0% | < 1% | ✅ |
-| Throughput | 29.18 req/s | — | — |
-
-La línea base cumple todos los SLO con amplio margen. La brecha aparece bajo carga real: en el escenario *stress* (50 VUs, `PERF-001`) la p95 supera los 300 ms porque no hay caché ni soporte multi-core, y en el escenario *spike* (`PERF-002`) la tasa de error supera el 5% por falta de backpressure. Ver el detalle completo en [`perf/defectos_rendimiento.md`](./perf/defectos_rendimiento.md).
+Los defectos funcionales (`DEF-001/002/003`) se cerraron siguiendo TDD (Red → Green → Refactor): cada corrección quedó respaldada por la prueba que originalmente falló, ahora en verde, sin regresiones. Los defectos de rendimiento (`PERF-001/002/003`) permanecen abiertos o en progreso porque su solución implica cambios de arquitectura, no un fix puntual de código; su cierre está condicionado a una nueva ejecución de las pruebas de carga contra la línea base.
 
 ---
 
 ## Gestión de Defectos
 
-Ver archivo [`defectos.md`](./defectos.md) para el registro completo.
+Ver archivo [`defectos.md`](./defectos.md) para el registro completo y [`perf/defectos_rendimiento.md`](./perf/defectos_rendimiento.md) para el detalle de rendimiento.
 
-| ID | Tipo | Detectado | Estado |
-|----|------|-----------|--------|
-| DEF-001 | Integración | Query vacía persistía en repo | ✅ Cerrado |
-| DEF-002 | Sistema HTTP | userId numérico retornaba 500 en lugar de 400 | ✅ Cerrado |
-| DEF-003 | Integración MCP | `excludeTitles` no se pasaba al servicio de recomendación | ✅ Cerrado |
-
-Los tres defectos fueron **detectados por las pruebas automatizadas** siguiendo el ciclo TDD: la prueba falló en RED → se corrigió el código → se verificó en GREEN.
+Los tres defectos funcionales fueron **detectados por las pruebas automatizadas** siguiendo el ciclo TDD: la prueba falló en RED → se corrigió el código → se verificó en GREEN. Ver la tabla de [clasificación y solución](#-métricas-de-defectos-clasificación-y-solución) arriba para el detalle completo.
 
 ---
 
