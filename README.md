@@ -24,6 +24,7 @@ Construido con **Node.js + Express**, conectado vía **MCP (Model Context Protoc
 - [Pruebas de Sistema HTTP](#pruebas-de-sistema-http)
 - [Matriz de Pruebas de Integración](#matriz-de-pruebas-de-integración)
 - [Cobertura de Pruebas](#cobertura-de-pruebas)
+- [📊 Métricas de Defectos: Clasificación y Solución](#-métricas-de-defectos-clasificación-y-solución)
 - [Gestión de Defectos](#gestión-de-defectos)
 - [TDD y Patrones Aplicados](#tdd-y-patrones-aplicados)
 - [CI/CD con GitHub Actions](#cicd-con-github-actions)
@@ -509,17 +510,48 @@ All files                  |  ≥ 80   |  ≥ 75    |  ≥ 80   |  ≥ 80   |
 
 ---
 
+## 📊 Métricas de Defectos: Clasificación y Solución
+
+> Datos reales extraídos de [`defectos.md`](./defectos.md) y [`perf/defectos_rendimiento.md`](./perf/defectos_rendimiento.md). Última actualización: 2026-06-18.
+
+[![Defectos](https://img.shields.io/badge/defectos%20totales-6-blue)](#-métricas-de-defectos-clasificación-y-solución)
+[![Cerrados](https://img.shields.io/badge/cerrados-3-brightgreen)](#-métricas-de-defectos-clasificación-y-solución)
+[![En progreso](https://img.shields.io/badge/en%20progreso-1-yellow)](#-métricas-de-defectos-clasificación-y-solución)
+[![Abiertos](https://img.shields.io/badge/abiertos-2-red)](#-métricas-de-defectos-clasificación-y-solución)
+
+### Clasificación
+
+| ID | Tipo | Severidad | Prioridad | Categoría | Impacto |
+|---|---|---|---|---|---|
+| DEF-001 | Integración (Servicio + Repositorio) | Media | Media | Validación de entrada | Historial inválido persistido en base de datos (búsquedas vacías guardadas) |
+| DEF-002 | Sistema (HTTP / caja negra) | Alta | Alta | Manejo de errores / API | Endpoint retornaba 500 (error interno no controlado) en lugar de 400 |
+| DEF-003 | Integración (MCP + Recomendación) | Alta | Alta | Lógica de negocio | Recomendaciones incorrectas (incluían títulos que debían excluirse) |
+| PERF-001 | Rendimiento (Stress, 50 VUs) | Alta | Media | Rendimiento / Escalabilidad | Incumplimiento de SLO p95 < 300ms bajo carga de estrés |
+| PERF-002 | Rendimiento (Spike, 5→100 VUs) | Crítica | Alta | Rendimiento / Disponibilidad | Errores y timeouts ante picos abruptos de tráfico |
+| PERF-003 | Rendimiento (Soak, 10 VUs / 5min) | Media | Media | Rendimiento / Gestión de memoria | Degradación silenciosa de latencia en sesiones largas |
+
+**Criterio aplicado:** la severidad valora el efecto técnico/funcional (un 500 no controlado es severidad alta porque rompe el contrato de la API); la prioridad valora la urgencia de negocio (`PERF-002` se prioriza alto porque afecta disponibilidad ante eventos reales de tráfico).
+
+### Solución y cierre
+
+| ID | Causa raíz | Corrección aplicada | Estado final | Evidencia de cierre |
+|---|---|---|---|---|
+| DEF-001 | Guard de validación comprobaba `!query` pero no `!query.trim()` | Se agregó `!query.trim()` al guard antes de invocar `saveSearch` | ✅ Cerrado | Mock `saveSearch` con 0 invocaciones tras corrección |
+| DEF-002 | Controlador validaba `!userId` (falsiness) sin chequear el tipo | Se agregó `typeof userId !== 'string'` a la validación | ✅ Cerrado | Respuesta HTTP 400 confirmada en prueba de sistema |
+| DEF-003 | Desestructuración del objeto `args` omitía `excludeTitles` | Se incluyó `excludeTitles` en la desestructuración del conector MCP | ✅ Cerrado | Recomendaciones sin títulos excluidos, validado en prueba unitaria |
+| PERF-001 | Sin caché; `getRecommendations()` recorre el dataset completo (O(n)) por solicitud | Propuesta: caché en memoria con TTL, cluster de Node.js, precálculo de scores | 🔴 Abierto | Métrica aún > 300ms p95; pendiente nueva ejecución de validación |
+| PERF-002 | Sin backpressure ni límite de conexiones configurado | Propuesta: `server.maxConnections` + cola, circuit breaker, balanceador (nginx) | 🔴 Abierto | Tasa de error sigue > 5% en el escenario spike |
+| PERF-003 | Posible memory leak / presión de GC en `recommendationService.js` | En revisión: referencias circulares, `--max-old-space-size`, endpoint de métricas | 🟠 En progreso | Tendencia de latencia/memoria aún no remedida tras cambios |
+
+Los defectos funcionales (`DEF-001/002/003`) se cerraron siguiendo TDD (Red → Green → Refactor): cada corrección quedó respaldada por la prueba que originalmente falló, ahora en verde, sin regresiones. Los defectos de rendimiento (`PERF-001/002/003`) permanecen abiertos o en progreso porque su solución implica cambios de arquitectura, no un fix puntual de código; su cierre está condicionado a una nueva ejecución de las pruebas de carga contra la línea base.
+
+---
+
 ## Gestión de Defectos
 
-Ver archivo [`defectos.md`](./defectos.md) para el registro completo.
+Ver archivo [`defectos.md`](./defectos.md) para el registro completo y [`perf/defectos_rendimiento.md`](./perf/defectos_rendimiento.md) para el detalle de rendimiento.
 
-| ID | Tipo | Detectado | Estado |
-|----|------|-----------|--------|
-| DEF-001 | Integración | Query vacía persistía en repo | ✅ Cerrado |
-| DEF-002 | Sistema HTTP | userId numérico retornaba 500 en lugar de 400 | ✅ Cerrado |
-| DEF-003 | Integración MCP | `excludeTitles` no se pasaba al servicio de recomendación | ✅ Cerrado |
-
-Los tres defectos fueron **detectados por las pruebas automatizadas** siguiendo el ciclo TDD: la prueba falló en RED → se corrigió el código → se verificó en GREEN.
+Los tres defectos funcionales fueron **detectados por las pruebas automatizadas** siguiendo el ciclo TDD: la prueba falló en RED → se corrigió el código → se verificó en GREEN. Ver la tabla de [clasificación y solución](#-métricas-de-defectos-clasificación-y-solución) arriba para el detalle completo.
 
 ---
 
